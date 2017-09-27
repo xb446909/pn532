@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="src">
+      <UniqueIdentifier>{fb6aad23-e71a-42e3-871f-39303f8e305b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc">
+      <UniqueIdentifier>{8cf4ed82-62d8-415d-9b56-217cc29dbbf0}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\logger.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\nfc.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pn532_uart.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\uart.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="inc\logger.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\nfc.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\pn532_uart.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\uart.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

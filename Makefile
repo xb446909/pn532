@@ -1,24 +1,24 @@
-CXX      = g++
-CXXFLAGS  = -Wall -O
+CC      = gcc
+CCFLAGS  = -g -Wall -O
 INCLUDEFLAGS = -Iinc
 LDFLAGS = 
 TARGETS = nfc_pn532
 
-SOURCES := $(shell find . -name *.cpp)
+SOURCES := $(shell find . -name *.c)
 
-OBJS := $(SOURCES:.cpp=.o)
+OBJS := $(SOURCES:.c=.o)
 
 .PHONY:all 
 all : $(TARGETS)
 
 nfc_pn532:$(OBJS)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-%.o:%.cpp
-	$(CXX) -o $@ -c $< $(CXXFLAGS) $(INCLUDEFLAGS)
+%.o:%.c
+	$(CC) -o $@ -c $< $(CCFLAGS) $(INCLUDEFLAGS)
 
-%.d:%.cpp
-	@set -e; rm -f $@; $(CXX) -MM $< $(INCLUDEFLAGS) > $@.$$$$; \
+%.d:%.c
+	@set -e; rm -f $@; $(CC) -MM $< $(INCLUDEFLAGS) > $@.$$$$; \
 	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
 	rm -f $@.$$$$
 
