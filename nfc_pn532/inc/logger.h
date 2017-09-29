@@ -1,7 +1,7 @@
 #ifndef __FILE_LOGGER_H
 #define __FILE_LOGGER_H
 
-enum {
+enum logger_verbosity{
 		System = -1,
 		Error = 0,
 		Warning = 1,
@@ -10,8 +10,8 @@ enum {
 	};
 
 
-extern void AddLogLine(int verbosity, const char* fmt, ...);
-extern void SetVerbosity(int verbosity);
+void AddLogLine(int verbosity, const char* fmt, ...);
+void SetVerbosity(int verbosity);
 
 #define LOG_SYSTEM(...)				AddLogLine(System, ##__VA_ARGS__)
 #define LOG_ERROR(...)				AddLogLine(Error, ##__VA_ARGS__)

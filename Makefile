@@ -1,8 +1,8 @@
 CC      = gcc
 CCFLAGS  = -g -Wall -O
-INCLUDEFLAGS = -Iinc
+INCLUDEFLAGS = -Infc_pn532/inc
 LDFLAGS = 
-TARGETS = nfc_pn532
+TARGETS = nfc_pn532.out
 
 SOURCES := $(shell find . -name *.c)
 
@@ -11,7 +11,7 @@ OBJS := $(SOURCES:.c=.o)
 .PHONY:all 
 all : $(TARGETS)
 
-nfc_pn532:$(OBJS)
+$(TARGETS):$(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 %.o:%.c

@@ -69,10 +69,10 @@ void AddLogLine(int verbosity, const char* fmt, ...)
 		}
         
 		strcat(print_buf, buf);
-		strcat(print_buf, "\n");
 
-		FILE *fs = fopen(namebuf, "a");
-		fwrite(print_buf, sizeof(char), strlen(print_buf) + 1, fs);
+		FILE *fs = fopen(namebuf, "ab");
+		fprintf(fs, "%s\n", print_buf);
+		fclose(fs);
 
         printf("%s\n", print_buf);
 	}

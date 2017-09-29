@@ -14,14 +14,13 @@ void display_help()
 
 int main(int argc, char** argv)
 {
-    int c;
-
     char connstring[512] = { 0 };
 
 #ifdef _IN_VS2017_
 	SetVerbosity(3);
-	strcpy(connstring, "/dev/tty0:115200");
+	strcpy(connstring, "/dev/ttyAMA0:115200");
 #else
+	int c;
 	while ((c = getopt(argc, argv, "hl:c:")) != -1)
 	{
 		switch (c)
