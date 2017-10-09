@@ -37,9 +37,10 @@ ppn532_status pn532_uart_open(const char* connstring)
     }
 
 	ps->power_mode = LOWVBAT;
-	if (pn532_check_communication(ps) != 0)
+	if (pn532_check_communication(ps) < 0)
 	{
-
+		pn532_uart_close(ps);
+		return NULL;
 	}
     return ps;
 }
@@ -300,6 +301,20 @@ int pn532_build_frame(uint8_t *pbtFrame, size_t *pszFrame, const uint8_t *pbtDat
 	}
 	return NFC_SUCCESS;
 }
+
+int pn532_SetParameters(ppn532_status ps, const uint8_t ui8Value)
+{
+	uint8_t  abtCmd[] = { SetParameters, ui8Value };
+	int res = 0;
+
+	if ((res = pn532_transceive(ps, abtCmd, sizeof(abtCmd), NULL, 0, -1)) < 0) {
+		return res;
+	}
+	// We save last parameters in register cache
+	ps->ui8Parameters = ui8Value;
+	return NFC_SUCCESS;
+}
+
 
 int pn532_SAMConfiguration(ppn532_status ps, const pn532_sam_mode sam_mode, int timeout)
 {

@@ -294,6 +294,7 @@ typedef struct _tag_pn532_status
 	uint8_t last_status_byte;
 	uint8_t last_error;
 	pn532_sam_mode sam_mode;
+	uint8_t ui8Parameters;
 }pn532_status, *ppn532_status;
 
 ppn532_status pn532_uart_open(const char* connstring);
@@ -302,6 +303,7 @@ int pn532_check_communication(ppn532_status ps);
 int pn532_transceive(ppn532_status ps, const uint8_t *pbtTx, const size_t szTx, uint8_t *pbtRx, const size_t szRxLen, int timeout);
 int pn532_uart_wakeup(ppn532_status ps);
 int pn532_build_frame(uint8_t * pbtFrame, size_t * pszFrame, const uint8_t * pbtData, const size_t szData);
+int pn532_SetParameters(ppn532_status ps, const uint8_t ui8Value);
 int pn532_SAMConfiguration(ppn532_status ps, const pn532_sam_mode sam_mode, int timeout);
 int pn532_check_ack_frame(ppn532_status ps, const uint8_t * pbtRxFrame, const size_t szRxFrameLen);
 int pn532_uart_receive(ppn532_status ps, uint8_t *pbtData, const size_t szDataLen, int timeout);
