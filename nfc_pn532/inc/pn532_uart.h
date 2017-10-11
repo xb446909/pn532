@@ -5,6 +5,80 @@
 
 #define DEFAULT_UART_SPEED    115200  
 
+/* defines */
+#define PN53X_CACHE_REGISTER_MIN_ADDRESS 	PN53X_REG_CIU_Mode
+#define PN53X_CACHE_REGISTER_MAX_ADDRESS 	PN53X_REG_CIU_Coll
+#define PN53X_CACHE_REGISTER_SIZE 		((PN53X_CACHE_REGISTER_MAX_ADDRESS - PN53X_CACHE_REGISTER_MIN_ADDRESS) + 1)
+
+// Registers and symbols masks used to covers parts within a register
+//   PN53X_REG_CIU_TxMode
+#  define SYMBOL_TX_CRC_ENABLE      0x80
+#  define SYMBOL_TX_SPEED           0x70
+// TX_FRAMING bits explanation:
+//   00 : ISO/IEC 14443A/MIFARE and Passive Communication mode 106 kbit/s
+//   01 : Active Communication mode
+//   10 : FeliCa and Passive Communication mode at 212 kbit/s and 424 kbit/s
+//   11 : ISO/IEC 14443B
+#  define SYMBOL_TX_FRAMING         0x03
+
+//   PN53X_REG_Control_switch_rng
+#  define SYMBOL_CURLIMOFF          0x08     /* When set to 1, the 100 mA current limitations is desactivated. */
+#  define SYMBOL_SIC_SWITCH_EN      0x10     /* When set to logic 1, the SVDD switch is enabled and the SVDD output delivers power to secure IC and internal pads (SIGIN, SIGOUT and P34). */
+#  define SYMBOL_RANDOM_DATAREADY   0x02     /* When set to logic 1, a new random number is available. */
+
+//   PN53X_REG_CIU_RxMode
+#  define SYMBOL_RX_CRC_ENABLE      0x80
+#  define SYMBOL_RX_SPEED           0x70
+#  define SYMBOL_RX_NO_ERROR        0x08
+#  define SYMBOL_RX_MULTIPLE        0x04
+// RX_FRAMING follow same scheme than TX_FRAMING
+#  define SYMBOL_RX_FRAMING         0x03
+
+//   PN53X_REG_CIU_TxAuto
+#  define SYMBOL_FORCE_100_ASK      0x40
+#  define SYMBOL_AUTO_WAKE_UP       0x20
+#  define SYMBOL_INITIAL_RF_ON      0x04
+
+//   PN53X_REG_CIU_ManualRCV
+#  define SYMBOL_PARITY_DISABLE     0x10
+
+//   PN53X_REG_CIU_TMode
+#  define SYMBOL_TAUTO              0x80
+#  define SYMBOL_TPRESCALERHI       0x0F
+
+//   PN53X_REG_CIU_TPrescaler
+#  define SYMBOL_TPRESCALERLO       0xFF
+
+//   PN53X_REG_CIU_Command
+#  define SYMBOL_COMMAND            0x0F
+#  define SYMBOL_COMMAND_TRANSCEIVE 0xC
+
+//   PN53X_REG_CIU_Status2
+#  define SYMBOL_MF_CRYPTO1_ON      0x08
+
+//   PN53X_REG_CIU_FIFOLevel
+#  define SYMBOL_FLUSH_BUFFER       0x80
+#  define SYMBOL_FIFO_LEVEL         0x7F
+
+//   PN53X_REG_CIU_Control
+#  define SYMBOL_INITIATOR          0x10
+#  define SYMBOL_RX_LAST_BITS       0x07
+
+//   PN53X_REG_CIU_BitFraming
+#  define SYMBOL_START_SEND         0x80
+#  define SYMBOL_RX_ALIGN           0x70
+#  define SYMBOL_TX_LAST_BITS       0x07
+
+// Internal parameters flags
+#  define PARAM_NONE                  0x00
+#  define PARAM_NAD_USED              0x01
+#  define PARAM_DID_USED              0x02
+#  define PARAM_AUTO_ATR_RES          0x04
+#  define PARAM_AUTO_RATS             0x10
+#  define PARAM_14443_4_PICC          0x20 /* Only for PN532 */
+#  define PARAM_NFC_SECURE            0x20 /* Only for PN533 */
+#  define PARAM_NO_AMBLE              0x40 /* Only for PN532 */
+
 // Register addresses
 #define PN53X_REG_Control_switch_rng 0x6106
 #define PN53X_REG_CIU_Mode 0x6301
@@ -269,6 +343,8 @@
 
 
 
+
+
 typedef enum pn53x_power_mode {
 	NORMAL,	// In that case, there is no power saved but the PN53x reacts as fast as possible on the host controller interface.
 	POWERDOWN,	// Only on PN532, need to be wake up to process commands with a long preamble
@@ -295,6 +371,14 @@ typedef struct _tag_pn532_status
 	uint8_t last_error;
 	pn532_sam_mode sam_mode;
 	uint8_t ui8Parameters;
+	char firmware_text[22];
+	uint8_t btSupportByte;
+	uint8_t ui8TxBits;
+
+	/** WriteBack cache */
+	uint8_t wb_data[PN53X_CACHE_REGISTER_SIZE];
+	uint8_t wb_mask[PN53X_CACHE_REGISTER_SIZE];
+	bool wb_trigged;
 }pn532_status, *ppn532_status;
 
 ppn532_status pn532_uart_open(const char* connstring);
@@ -306,6 +390,13 @@ int pn532_build_frame(uint8_t * pbtFrame, size_t * pszFrame, const uint8_t * pbt
 int pn532_SetParameters(ppn532_status ps, const uint8_t ui8Value);
 int pn532_SAMConfiguration(ppn532_status ps, const pn532_sam_mode sam_mode, int timeout);
 int pn532_check_ack_frame(ppn532_status ps, const uint8_t * pbtRxFrame, const size_t szRxFrameLen);
+int pn532_init(ppn532_status ps);
+int pn532_reset_settings(ppn532_status ps);
+int pn532_WriteRegister(ppn532_status ps, const uint16_t ui16RegisterAddress, const uint8_t ui8Value);
+int pn532_write_register(ppn532_status ps, const uint16_t ui16RegisterAddress, const uint8_t ui8SymbolMask, const uint8_t ui8Value);
+int pn532_ReadRegister(ppn532_status ps, uint16_t ui16RegisterAddress, uint8_t * ui8Value);
+int pn532_read_register(ppn532_status ps, uint16_t ui16RegisterAddress, uint8_t * ui8Value);
+int pn532_decode_firmware_version(ppn532_status ps);
 int pn532_uart_receive(ppn532_status ps, uint8_t *pbtData, const size_t szDataLen, int timeout);
 int pn532_uart_send(ppn532_status ps, const uint8_t *pbtData, const size_t szData, int timeout);
 const char *pn53x_strerror(uint8_t errcode);

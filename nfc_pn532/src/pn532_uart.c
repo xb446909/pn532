@@ -42,6 +42,9 @@ ppn532_status pn532_uart_open(const char* connstring)
 		pn532_uart_close(ps);
 		return NULL;
 	}
+
+	pn532_init(ps);
+
     return ps;
 }
 
@@ -350,6 +353,129 @@ int pn532_check_ack_frame(ppn532_status ps, const uint8_t *pbtRxFrame, const siz
 	ps->last_error = NFC_EIO;
 	LOG_ERROR("Unexpected PN53x reply!");
 	return ps->last_error;
+}
+
+int pn532_init(ppn532_status ps)
+{
+	int res = 0;
+	// GetFirmwareVersion command is used to set PN53x chips type (PN531, PN532 or PN533)
+	if ((res = pn532_decode_firmware_version(ps)) < 0) {
+		return res;
+	}
+	// CRC handling should be enabled by default as declared in nfc_device_new
+	// which is the case by default for pn53x, so nothing to do here
+	// Parity handling should be enabled by default as declared in nfc_device_new
+	// which is the case by default for pn53x, so nothing to do here
+
+	// We can't read these parameters, so we set a default config by using the SetParameters wrapper
+	// Note: pn532_SetParameters() will save the sent value in pnd->ui8Parameters cache
+	if ((res = pn532_SetParameters(ps, PARAM_AUTO_ATR_RES | PARAM_AUTO_RATS)) < 0) 
+	{
+		return res;
+	}
+
+	if ((res = pn532_reset_settings(ps)) < 0) 
+	{
+		return res;
+	}
+	return NFC_SUCCESS;
+}
+
+int pn532_reset_settings(ppn532_status ps)
+{
+	int res = 0;
+	// Reset the ending transmission bits register, it is unknown what the last tranmission used there
+	ps->ui8TxBits = 0;
+	if ((res = pn532_write_register(ps, PN53X_REG_CIU_BitFraming, SYMBOL_TX_LAST_BITS, 0x00)) < 0) {
+		return res;
+	}
+	// Make sure we reset the CRC and parity to chip handling.
+	if ((res = pn532_set_property_bool(ps, NP_HANDLE_CRC, true)) < 0)
+		return res;
+	if ((res = pn532_set_property_bool(ps, NP_HANDLE_PARITY, true)) < 0)
+		return res;
+	// Activate "easy framing" feature by default
+	if ((res = pn532_set_property_bool(ps, NP_EASY_FRAMING, true)) < 0)
+		return res;
+	// Deactivate the CRYPTO1 cipher, it may could cause problems when still active
+	if ((res = pn532_set_property_bool(ps, NP_ACTIVATE_CRYPTO1, false)) < 0)
+		return res;
+
+	return NFC_SUCCESS;
+}
+
+int pn532_WriteRegister(ppn532_status ps, const uint16_t ui16RegisterAddress, const uint8_t ui8Value)
+{
+	uint8_t  abtCmd[] = { WriteRegister, ui16RegisterAddress >> 8, ui16RegisterAddress & 0xff, ui8Value };
+	return pn532_transceive(ps, abtCmd, sizeof(abtCmd), NULL, 0, -1);
+}
+
+int pn532_write_register(ppn532_status ps, const uint16_t ui16RegisterAddress, const uint8_t ui8SymbolMask, const uint8_t ui8Value)
+{
+	if ((ui16RegisterAddress < PN53X_CACHE_REGISTER_MIN_ADDRESS) || (ui16RegisterAddress > PN53X_CACHE_REGISTER_MAX_ADDRESS)) {
+		// Direct write
+		if (ui8SymbolMask != 0xff) {
+			int res = 0;
+			uint8_t ui8CurrentValue;
+			if ((res = pn532_read_register(ps, ui16RegisterAddress, &ui8CurrentValue)) < 0)
+				return res;
+			uint8_t ui8NewValue = ((ui8Value & ui8SymbolMask) | (ui8CurrentValue & (~ui8SymbolMask)));
+			if (ui8NewValue != ui8CurrentValue) {
+				return pn532_WriteRegister(ps, ui16RegisterAddress, ui8NewValue);
+			}
+		}
+		else {
+			return pn532_WriteRegister(ps, ui16RegisterAddress, ui8Value);
+		}
+	}
+	else {
+		// Write-back cache area
+		const int internal_address = ui16RegisterAddress - PN53X_CACHE_REGISTER_MIN_ADDRESS;
+		ps->wb_data[internal_address] = (ps->wb_data[internal_address] & ps->wb_mask[internal_address] & (~ui8SymbolMask)) | (ui8Value & ui8SymbolMask);
+		ps->wb_mask[internal_address] = ps->wb_mask[internal_address] | ui8SymbolMask;
+		ps->wb_trigged = true;
+	}
+	return NFC_SUCCESS;
+}
+
+int pn532_ReadRegister(ppn532_status ps, uint16_t ui16RegisterAddress, uint8_t *ui8Value)
+{
+	uint8_t  abtCmd[] = { ReadRegister, ui16RegisterAddress >> 8, ui16RegisterAddress & 0xff };
+	uint8_t  abtRegValue[2];
+	size_t  szRegValue = sizeof(abtRegValue);
+	int res = 0;
+
+	if ((res = pn532_transceive(ps, abtCmd, sizeof(abtCmd), abtRegValue, szRegValue, -1)) < 0) {
+		return res;
+	}
+	*ui8Value = abtRegValue[0];
+	return NFC_SUCCESS;
+}
+
+int pn532_read_register(ppn532_status ps, uint16_t ui16RegisterAddress, uint8_t *ui8Value)
+{
+	return pn53x_ReadRegister(ps, ui16RegisterAddress, ui8Value);
+}
+
+int pn532_decode_firmware_version(ppn532_status ps)
+{
+	const uint8_t abtCmd[] = { GetFirmwareVersion };
+	uint8_t  abtFw[4];
+	size_t  szFwLen = sizeof(abtFw);
+	int res = 0;
+	if ((res = pn532_transceive(ps, abtCmd, sizeof(abtCmd), abtFw, szFwLen, -1)) < 0) {
+		return res;
+	}
+	szFwLen = (size_t)res;
+	// Determine which version of chip it is: PN531 will return only 2 bytes, while others return 4 bytes and have the first to tell the version IC
+	if ((szFwLen != 4) || (abtFw[0] != 0x32))
+	{
+		return NFC_ENOTIMPL;
+	}
+	snprintf(ps->firmware_text, ps->firmware_text, "PN532 v%d.%d", abtFw[1], abtFw[2]);
+	ps->btSupportByte = abtFw[3];
+
+	return NFC_SUCCESS;
 }
 
 #define PN532_BUFFER_LEN (PN53x_EXTENDED_FRAME__DATA_MAX_LEN + PN53x_EXTENDED_FRAME__OVERHEAD)
